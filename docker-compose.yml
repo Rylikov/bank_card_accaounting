@@ -1,0 +1,37 @@
+version: '3.7'
+services:
+  db:
+    image: "postgres:9.6-alpine"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+    env_file: ./.env
+    expose:
+      - "5432"
+
+  web:
+    depends_on:
+      - db
+    build: ./card_accounting
+    restart: always
+    expose:
+      - "8000"
+    links:
+      - db
+    volumes:
+      - ./static:/usr/src/app/public/static
+    env_file: ./.env
+    command: ["/bin/sh", "-c","python manage.py collectstatic --noinput && python manage.py migrate --noinput && uwsgi --processes 1 --threads 4 --socket :8000 -b 32768 --wsgi-file card_accounting/wsgi.py"]
+
+  nginx:
+    restart: always
+    build: ./nginx/
+    ports:
+      - "80:80"
+    volumes:
+      - ./static:/usr/src/app/public/static
+    links:
+      - web:web
+
+volumes:
+  pg_data:
